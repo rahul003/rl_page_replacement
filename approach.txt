@@ -1,0 +1,14 @@
+features fro state
+
+set of pages in memory, 
+
+then
+
+for each page in memory, we have
+	freq of access
+	last access time
+	inserted time
+
+
+or last t references
+put frames in order of last references, maybe think
