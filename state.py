@@ -19,6 +19,6 @@ class State:
 		self.s[frame][2] = 1
 		self.s[frame][3] = curr_time
 
-	def get_state(self):
+	def get_vec(self):
 		return self.s.flatten()
 

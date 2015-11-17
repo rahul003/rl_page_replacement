@@ -6,7 +6,9 @@ from numpy import where
 from utils import file_len
 from abc import ABCMeta, abstractmethod
 from state import State
-
+from pybrain.datasets import SupervisedDataSet
+from pybrain.supervised.trainers import BackpropTrainer
+from agents import NNSarsa
 class FrameTable(object):
 	__metaclass__ = ABCMeta
 
@@ -35,16 +37,18 @@ class FrameTable(object):
 		raise NotImplementedError("Must override hit")
 
 	def access(self, page):
-		#Attempt to access a given page
+		#Attempt to access a given page. returns False if fault
 		FrameTable.time += 1
 
 		found_page = where(FrameTable.frames==page)[0]
 		if found_page.size == 0:
 			#page fault
 			self.insert(page)
+			return False
 		else:
 			#page found
 			self.hit(found_page[0])
+			return True
 
 	def insert(self, page):
 		#page fault
@@ -174,7 +178,34 @@ class Master(FrameTable):
 		self.algorithms.append(FIFO(size))
 		self.algorithms.append(LRU(size))
 		self.algorithms.append(NFU(size))
-		self.curalgo = 0
+		self.curalgo = 2
+
+		self.agent = NNSarsa(size, len(self.algorithms))
+		#train to make all inputs go to 10/100 (?)
+		self.miss_reward = -1
+		self.hit_reward = 0
+
+	def access(self, page):
+		#Attempt to access a given page
+		state = FrameTable.current_state
+		action = self.agent.act(state)
+		
+		if not action == self.curalgo:
+			self.curalgo = action
+
+		if not FrameTable.access(self, page):
+			#page fault
+			reward = self.miss_reward
+		else:
+			#hit
+			reward = self.hit_reward
+		
+		new_state = FrameTable.current_state
+		new_action = self.agent.act(new_state)
+		self.agent.update_q(state, action, reward, new_state, new_action)
+		
+		if not FrameTable.time%1000:
+			self.agent.save_nnet()
 
 	def hit(self, p):
 		for algo in self.algorithms:
@@ -184,10 +215,8 @@ class Master(FrameTable):
 		for algo in self.algorithms:
 			algo.insert_data(frame)	
 
-
 	def eject(self):
-		self.curalgo = FrameTable.time%4
-		print 'calling ', self.curalgo
+		# self.curalgo = FrameTable.time%4
 		return self.algorithms[self.curalgo].eject()
 
 
@@ -195,7 +224,7 @@ def GetCommandLineArgs():
 	parser = argparse.ArgumentParser(description='simulates page replacement algorithms')
 	parser.add_argument('frames', type=int, help='number of frames to simulate')
 	parser.add_argument('source', help='filepath of pages to be accessed. one on each line.')
-	parser.add_argument('algorithm', help='paging algorithm to use. <0: Random> <1: FIFO> <2: LRU> <3: Clock> <4: Optimal> <5: Custom>')
+	parser.add_argument('algorithm', help='paging algorithm to use. <0: Random> <1: FIFO> <2: LRU> <3: Clock> <4: Optimal> <5: Custom>', default='0')
 	args = parser.parse_args()
 	return args
 
@@ -251,5 +280,5 @@ def SimulateMaster():
 	frame_table.print_faults()
 
 if __name__ == "__main__":
-	# SimulateStandardAlgo()
 	SimulateMaster()
+	# SimulateStandardAlgo()
