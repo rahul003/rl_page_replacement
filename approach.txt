@@ -9,6 +9,14 @@ for each page in memory, we have
 	last access time
 	inserted time
 
+ok this as a vector is the state, say
+
+action is one fo the algorithms	
+
+
+
+----
+state
 
 or last t references
 put frames in order of last references, maybe think

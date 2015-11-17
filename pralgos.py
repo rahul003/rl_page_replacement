@@ -4,110 +4,129 @@ import random
 import numpy
 from numpy import where
 from utils import file_len
+from abc import ABCMeta, abstractmethod
+from state import State
 
+class FrameTable(object):
+	__metaclass__ = ABCMeta
 
-"""
-Todo:
-move data for an algo into its own class
-"""
-
-class Master(object):
+	frames = None
+	faults = 0
+	time = 0
+	current_state = None
 
 	def __init__(self, size):
-		"""Create a frame table"""
-		self.frames = numpy.zeros(size, dtype=numpy.int)
-		self.faults = 0
-
-		self.algorithms = []
-		self.algorithms.append(Rand(size))
-		self.algorithms.append(FIFO(size))
-		self.algorithms.append(LRU(size))
-		self.algorithms.append(NFU(size))
-
-		self.curalgo = 0
-		self.current_state = State(size)
+		FrameTable.frames = numpy.zeros(size, dtype=numpy.int)
+		FrameTable.current_state = State(size, 4)
 		
-		#fifo, lru
-		self.time = 0
+	def print_faults(self):
+		print FrameTable.faults
 
-		#for fifo
-		self.insert_times = numpy.zeros(size, dtype=numpy.int)
+	@abstractmethod
+	def insert_data(self, frame):
+		raise NotImplementedError("Must override insert_data")
 
-		#for LRU #init value doesnt matter as init value will nto be queired
-		self.access_times = numpy.zeros(size, dtype=numpy.int)
-		
-		#forNFU
-		self.access_counts = numpy.zeros(size, dtype=numpy.int)
+	@abstractmethod
+	def eject(self):
+		raise NotImplementedError("Must override eject")
 
+	@abstractmethod
+	def hit(self, p):
+		raise NotImplementedError("Must override hit")
 
 	def access(self, page):
-		"""Attempt to access a given page."""
-		#fifo, lru
-		self.time += 1
+		#Attempt to access a given page
+		FrameTable.time += 1
 
-		found_page = where(self.frames==page)[0]
+		found_page = where(FrameTable.frames==page)[0]
 		if found_page.size == 0:
 			#page fault
 			self.insert(page)
 		else:
 			#page found
-			self.access_times[found_page[0]] = self.time 
-			self.access_counts[found_page[0]] +=1
-			self.state.access(found_page[0], self.time)
-
-	def insert_data(self, frame):
-		self.insert_times[frame] = self.time
-		self.access_times[frame] = self.time
-		self.access_counts[frame] = 1
+			self.hit(found_page[0])
 
 	def insert(self, page):
 		#page fault
-		self.faults += 1
-		
-		zero_frames = where(self.frames==0)[0]
+		FrameTable.faults += 1
+
+		zero_frames = where(FrameTable.frames==0)[0]
 		if zero_frames.size:
 			#frame with page 0 found
-			self.frames[zero_frames[0]] = page
+			FrameTable.frames[zero_frames[0]] = page
+			FrameTable.current_state.insert(zero_frames[0], page, FrameTable.time)
 			self.insert_data(zero_frames[0])
-			self.state.insert(zero_frames[0], page, self.time)
+
 		else:
 			#frame to be ejected
 			frame = self.eject()
-			self.frames[frame] = page
+			FrameTable.frames[frame] = page
+			FrameTable.current_state.insert(frame, page, FrameTable.time)
 			self.insert_data(frame)
-			self.state.insert(frame, page, self.time)
-
-	def eject(self):
-		#Eject a frame from the frame table according to an algorithm
-		#call agent and get action for curstate and set it to curalgo
-		return self.algorithms[self.curalgo].eject()
-
-	def print_faults(self):
-		"""Print the access table."""
-		print self.faults
-
-
-class Rand(Master):
+			
+class Randomly(FrameTable):
 	"""randomly ejects pages when there is a page fault."""
 
-	def eject(self):
-		return random.randint(0, self.frames.shape[0] - 1)
+	def insert_data(self, frame):
+		pass
 
-class FIFO(Master):
+	def hit(self, frame):
+		FrameTable.current_state.access(frame, FrameTable.time)
+
+	def eject(self):
+		return random.randint(0, FrameTable.frames.shape[0] - 1)
+
+class FIFO(FrameTable):
 	"""ejects pages according to the order in which they were inserted."""
+
+	def __init__(self, size):
+		FrameTable.__init__(self,size)
+		#for fifo
+		self.insert_times = numpy.zeros(size, dtype=numpy.int)
+
+	def hit(self, frame):
+		FrameTable.current_state.access(frame, FrameTable.time)
+
+	def insert_data(self, frame):
+		self.insert_times[frame] = FrameTable.time
 
 	def eject(self):
 		return numpy.argmin(self.insert_times)
 
-class LRU(Master):
+class LRU(FrameTable):
 	"""ejects pages which have been the least recently used."""
+
+	def __init__(self, size):
+		FrameTable.__init__(self,size)
+		#for LRU #init value doesnt matter as init value will nto be queired
+		self.access_times = numpy.zeros(size, dtype=numpy.int)
+	
+	def insert_data(self, frame):
+		self.access_times[frame] = FrameTable.time
+
+	def hit(self, frame):
+		self.access_times[frame] = FrameTable.time 
+		FrameTable.current_state.access(frame, FrameTable.time)
+
 	def eject(self):
 		ejected_page = numpy.argmin(self.access_times)
 		self.access_times[ejected_page] = numpy.iinfo(numpy.int).max
 		return ejected_page
 
-class NFU(Master):
+class NFU(FrameTable):
 	"""ejects pages according to the not frequently used algorithm."""
+
+	def __init__(self, size):
+		FrameTable.__init__(self,size)
+		#forNFU
+		self.access_counts = numpy.zeros(size, dtype=numpy.int)
+	
+	def insert_data(self, frame):
+		self.access_counts[frame] = 1
+
+	def hit(self, frame):
+		self.access_counts[frame] +=1
+		FrameTable.current_state.access(frame, FrameTable.time)
 
 	def eject(self):
 		ejected_page = numpy.argmin(self.access_counts)
@@ -115,14 +134,14 @@ class NFU(Master):
 			print 'Error'
 		return ejected_page
 
-class Optimal(Master):
+class Optimal(FrameTable):
 	"""looks into the future in order to implement the optimal page replacement algorithm."""
 
 	def eject(self):
 		max_index = 0
-		max_frame = self.frames[0] #this will be used only in case of last trace page. doesnt mattter
+		max_frame = FrameTable.frames[0] #this will be used only in case of last trace page. doesnt mattter
 
-		for frame in self.frames:
+		for frame in FrameTable.frames:
 			next_occurences = where(self.trace[self.k+1:] == frame)[0]
 			if next_occurences.size:
 				index = self.k+1+next_occurences[0]
@@ -132,26 +151,57 @@ class Optimal(Master):
 			else:
 				max_frame = frame
 				break
-		 ind = where(self.frames == max_frame)[0][0]
+		ind = where(FrameTable.frames == max_frame)[0][0]
 		return ind
-
+	
+	def hit(self, frame):
+		pass
+	def insert_data(self, frame):
+		pass
+	
 	def simulate(self, trace):
 		self.trace = trace
 		for k in range(0, trace.shape[0]):            
 			self.k = k
 			self.access(trace[k])
 
+class Master(FrameTable):
+	def __init__(self, size):
+		FrameTable.__init__(self, size)
+		
+		self.algorithms = []
+		self.algorithms.append(Randomly(size))
+		self.algorithms.append(FIFO(size))
+		self.algorithms.append(LRU(size))
+		self.algorithms.append(NFU(size))
+		self.curalgo = 0
+
+	def hit(self, p):
+		for algo in self.algorithms:
+			algo.hit(p)
+	
+	def insert_data(self, frame):
+		for algo in self.algorithms:
+			algo.insert_data(frame)	
+
+
+	def eject(self):
+		self.curalgo = FrameTable.time%4
+		print 'calling ', self.curalgo
+		return self.algorithms[self.curalgo].eject()
+
 
 def GetCommandLineArgs():
-	parser = argparse.ArgumentParser(description='Simulates a number of different virtual memory page replacement algorithms.')
-	parser.add_argument('frames', type=int, help='The number of frames to simulate.')
-	# parser.add_argument('algorithm', help='The paging algorithm to use. <0: Random> <1: FIFO> <2: LRU> <3: Clock> <4: Optimal> <5: Custom>')
-	parser.add_argument('source', help='File containing a string of integers representing pages to be accessed.')
+	parser = argparse.ArgumentParser(description='simulates page replacement algorithms')
+	parser.add_argument('frames', type=int, help='number of frames to simulate')
+	parser.add_argument('source', help='filepath of pages to be accessed. one on each line.')
+	parser.add_argument('algorithm', help='paging algorithm to use. <0: Random> <1: FIFO> <2: LRU> <3: Clock> <4: Optimal> <5: Custom>')
 	args = parser.parse_args()
+	return args
 
-def SimulateStandardAlgos():
+def SimulateStandardAlgo():
 	algorithms = {
-		'0': {'name': 'RANDOM', 'impl': Rand},
+		'0': {'name': 'RANDOM', 'impl': Randomly},
 		'1': {'name': 'FIFO', 'impl': FIFO},
 		'2': {'name': 'LRU', 'impl': LRU},
 		# '3': {'name': 'CLOCK', 'impl': Clock},
@@ -162,35 +212,36 @@ def SimulateStandardAlgos():
 	random.seed()
 	args = GetCommandLineArgs()
 
-	for k in ['0','1','2','4','5']:
-		if k=='5':
-			trace = numpy.zeros(file_len(args.source), dtype=numpy.int)
-			count = 0
-		else:
-			frame_table = algorithms[k]['impl'](args.frames)
+	k = args.algorithm
+	# for k in args.algorithm.split(','):
+	# # for k in ['0','1','2','4','5']:
+	if k=='5':
+		trace = numpy.zeros(file_len(args.source), dtype=numpy.int)
+		count = 0
+	else:
+		frame_table = algorithms[k]['impl'](args.frames)
 
-		with open(args.source) as f:
-			for line in f:
-				if line.strip():
-					if k!='5':            
-						frame_table.access(int(line.strip()))
-					else:
-						trace[count] = int(line.strip())
-						count+=1
+	with open(args.source) as f:
+		for line in f:
+			if line.strip():
+				if k!='5':            
+					frame_table.access(int(line.strip()))
+				else:
+					trace[count] = int(line.strip())
+					count+=1
 
-		if k=='5':
-			frame_table = algorithms[k]['impl'](args.frames)
-			frame_table.simulate(trace)
+	if k=='5':
+		frame_table = algorithms[k]['impl'](args.frames)
+		frame_table.simulate(trace)
 
-		print algorithms[k]['name']
-		frame_table.print_faults()
+	print algorithms[k]['name']
+	frame_table.print_faults()
 
 def SimulateMaster():
 	random.seed()
 	args = GetCommandLineArgs()
 
-	
-	frame_table = algorithms[k]['impl'](args.frames)
+	frame_table = Master(args.frames)
 	with open(args.source) as f:
 		for line in f:
 			if line.strip():
@@ -199,6 +250,6 @@ def SimulateMaster():
 	print 'Master performance: '
 	frame_table.print_faults()
 
-
 if __name__ == "__main__":
+	# SimulateStandardAlgo()
 	SimulateMaster()
