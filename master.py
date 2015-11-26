@@ -22,6 +22,7 @@ class Master(FrameTable):
 
 	def access(self, page):
 		#Attempt to access a given page
+		print page
 		state = FrameTable.current_state
 		action = self.agent.act(state)
 		self.actions_history[action]+=1
@@ -41,13 +42,16 @@ class Master(FrameTable):
 		self.agent.update_q(state, action, reward, new_state, new_action)
 		
 		if not FrameTable.time%1000:
-			self.agent.save_nnet()
+			self.agent.save_model()
 
 	def hit(self, p):
+
 		for algo in self.algorithms:
+			print 'master algo hit'
 			algo.hit(p)
 	
 	def insert_data(self, frame):
+		print 'master algo insert'
 		for algo in self.algorithms:
 			algo.insert_data(frame)	
 
@@ -113,7 +117,7 @@ def SimulateMaster(num_frames, data_file):
 	with open(data_file) as f:
 		for line in f:
 			if line.strip():
-				if c>1000:
+				if c>10:
 					break
 				frame_table.access(int(line.strip()))
 				c+=1

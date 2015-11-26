@@ -5,25 +5,28 @@ import sys
 
 import numpy as np
 
-from approximator import NNet
+from approximator import GradientDescent
 
 class SarsaApprox:
-	def __init__(self, state_dim, action_dim, e=0.3, alpha=0.75, gamma=0.9, trained='pickle_fst.pkl'):
+	def __init__(self, state_dim, action_dim, e=0.3, alpha=0.75, gamma=0.9, lamda=0.4, trained='pickle_fst.pkl'):
 		self.actions = list(range(action_dim))
 		self.state_dim = state_dim
 
 		self.e = e
 		self.alpha = alpha
 		self.gamma = gamma
-
 		self.num_feats = state_dim*3 + action_dim
+		self.lamda = lamda
+
+		self.eligibility = np.zeros((self.num_feats))
+		self.trained = trained
 
 		try:
 			self.approximator = cPickle.load(open(trained))
 		except IOError, e:
 			print 'trained file not found'
-			# self.approximator = GradientDescent(self.num_feats)
-			self.approximator = NNet(self.num_feats, 100)
+			self.approximator = GradientDescent(self.num_feats, self.alpha)
+			# self.approximator = NNet(self.num_feats, 100)
 
 	def e_greedy(self, state):
 		"""
@@ -64,6 +67,9 @@ class SarsaApprox:
 		
 		#s,a pair
 		net_input = np.concatenate([state.get_vec(), actions_vec])
+
+		if not state.get_vec().max(axis=0).all():
+			print state.s
 		return net_input
 
 	def qvalue(self, state, action):
@@ -83,28 +89,14 @@ class SarsaApprox:
 	def update_q(self, state, action, reward, new_state, new_action):
 		q_old = self.qvalue(state, action)
 		q_new = self.qvalue(new_state, new_action)
-		target = q_old + self.alpha*(reward + (self.gamma*q_new)-q_old)
+		delta = reward + (self.gamma*q_new)-q_old
+
+		self.eligibility = self.gamma * self.lamda* self.eligibility + self.approximator.gradient(self.sa_to_input(state, action))
 		# print target
-		self.approximator.update(self.sa_to_input(state, action), np.array(target))
+		self.approximator.update(delta, self.eligibility)
 
-	def save_nnet(self):
-		fp = open(filename, "w")
-		cPickle.dump(self.net, fp)
+
+	def save_model(self):
+		fp = open(self.trained, "w")
+		cPickle.dump(self.approximator, fp)
 		fp.close()
-
-	# def save_example(self, inp, outp, old):
-	# 	self.q_old[len(self.ds)] = old
-	# 	self.ds.addSample(inp, outp)
-	# 	print len(self.ds)
-	# 	if len(self.ds)==500:
-	# 		trainer = BackpropTrainer(self.net, self.ds)
-	# 		print 'training'
-	# 		trainer.trainUntilConvergence()
-	# 		print 'trained'
-	# 		i = 0
-	# 		for x,y in self.ds:
-	# 			if not self.q_old[i] == self.net.activate(x):
-	# 				print i, 'old: ', self.q_old[i], 'new: ', self.net.activate(x)
-	# 			i+=1
-	# 		self.ds.clear()
-	# 		self.q_old = np.zeros(500)

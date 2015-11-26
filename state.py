@@ -21,6 +21,8 @@ class State:
 
 	def get_vec(self):
 		#normalize 
-		s_normed = self.s / self.s.max(axis=0)
-		return s_normed.flatten()
-
+		if self.s.max(axis=0).all():
+			s_normed = self.s / self.s.max(axis=0)
+			return s_normed.flatten()
+		else:
+			return self.s.flatten()

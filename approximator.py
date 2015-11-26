@@ -13,11 +13,11 @@ class FunctionApproximator(object):
 		self.num_dim = num_features
 
 	@abstractmethod
-	def getY(self, input):
+	def getY(self, inpt):
 		raise NotImplementedError("Must override getY")
 
 	@abstractmethod
-	def update(self, input, target):
+	def update(self, state, action, reward, new_state, new_action):
 		raise NotImplementedError("Must override update")
 
 
@@ -40,6 +40,11 @@ class NNet(FunctionApproximator):
 		return self.net.activate(inpt)
 
 	def update(self, inpt, target):
+		q_old = self.qvalue(state, action)
+		q_new = self.qvalue(new_state, new_action)
+		target = q_old + self.alpha*(reward + (self.gamma*q_new)-q_old)
+		
+
 		self.ds.addSample(inpt, target)
 		# print inpt.shape, target.shape
 		# print inpt, target
@@ -50,15 +55,25 @@ class NNet(FunctionApproximator):
 		trainer.train()
 
 class GradientDescent(FunctionApproximator):
-	def __init__(self, num_features):
+	#this is linear function: http://www.cc.gatech.edu/~mnelson/darcs/rl/_darcs/current/src/LinearStateActionValueFunc.java
+	#
+	def __init__(self, num_features, alpha):
 		super(GradientDescent,self).__init__(num_features)
 		self.params = np.ones(num_features)
+		self.alpha = alpha
 
 	def getY(self, X):
-		return np.dot(X,self.params)
+		return np.dot(self.basis_f(X),self.params)
 
-	def update(self, inpt, target):
-		
+	def update(self, delta, eligibility):
+		self.params = self.params + self.alpha*delta*eligibility
+
+	def gradient(self, inpt):
+		#for linear function
+		return inpt
+
+	def basis_f(self, x):
+		return x
 
 
 if __name__=='__main__':
