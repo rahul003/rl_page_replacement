@@ -1,29 +1,32 @@
-from pralgos import FrameTable, Randomly, FIFO, LRU, NFU
+from pralgos import FrameTable, Randomly, FIFO, LRU, NFU, Optimal, MRU
 from agent import SarsaApprox
 import random
-
+import sys
+import numpy
+from utils import file_len
 class Master(FrameTable):
 	def __init__(self, size):
 		FrameTable.__init__(self, size)
 		
 		self.algorithms = []
 		self.algorithms.append(Randomly(size))
-		self.algorithms.append(FIFO(size))
 		self.algorithms.append(LRU(size))
+		self.algorithms.append(FIFO(size))
 		self.algorithms.append(NFU(size))
-		self.curalgo = 2
+		self.curalgo = 0
 
 		self.agent = SarsaApprox(size, len(self.algorithms))
 		#train to make all inputs go to 10/100 (?)
-		self.miss_reward = -10
-		self.hit_reward = 0
+		self.miss_reward = -1
+		self.hit_reward = 1
 
 		self.actions_history = {0:0,1:0,2:0,3:0}
 
 	def access(self, page):
 		#Attempt to access a given page
-		print page
+		# print 'page', page
 		state = FrameTable.current_state
+		# print 'getting action for current state'
 		action = self.agent.act(state)
 		self.actions_history[action]+=1
 		
@@ -38,20 +41,24 @@ class Master(FrameTable):
 			reward = self.hit_reward
 		
 		new_state = FrameTable.current_state
+
+		# print 'getting action for new state'
+
 		new_action = self.agent.act(new_state)
 		self.agent.update_q(state, action, reward, new_state, new_action)
 		
-		if not FrameTable.time%1000:
+		# print 'finished one access\n'
+		if not FrameTable.time%100:
 			self.agent.save_model()
 
 	def hit(self, p):
 
 		for algo in self.algorithms:
-			print 'master algo hit'
+			# print 'master algo hit'
 			algo.hit(p)
 	
 	def insert_data(self, frame):
-		print 'master algo insert'
+		# print 'master algo insert'
 		for algo in self.algorithms:
 			algo.insert_data(frame)	
 
@@ -70,29 +77,30 @@ def GetCommandLineArgs():
 	args = parser.parse_args()
 	return args
 
-def SimulateStandardAlgo():
+def SimulateStandardAlgo(num_f, filename, k):
 	algorithms = {
 		'0': {'name': 'RANDOM', 'impl': Randomly},
 		'1': {'name': 'FIFO', 'impl': FIFO},
 		'2': {'name': 'LRU', 'impl': LRU},
-		# '3': {'name': 'CLOCK', 'impl': Clock},
+		'3': {'name': 'MRU', 'impl': MRU},
 		'4': {'name': 'NFU', 'impl': NFU},
 		'5': {'name': 'OPTIMAL', 'impl': Optimal},
 	}
 
 	random.seed()
-	args = GetCommandLineArgs()
+	# args = GetCommandLineArgs()
 
-	k = args.algorithm
+	# k = args.algorithm
 	# for k in args.algorithm.split(','):
 	# # for k in ['0','1','2','4','5']:
 	if k=='5':
-		trace = numpy.zeros(file_len(args.source), dtype=numpy.int)
+		trace = numpy.zeros(file_len(filename), dtype=numpy.int)
 		count = 0
 	else:
-		frame_table = algorithms[k]['impl'](args.frames)
+		frame_table = algorithms[k]['impl'](num_f)
+		frame_table.reset()
 
-	with open(args.source) as f:
+	with open(filename) as f:
 		for line in f:
 			if line.strip():
 				if k!='5':            
@@ -102,7 +110,8 @@ def SimulateStandardAlgo():
 					count+=1
 
 	if k=='5':
-		frame_table = algorithms[k]['impl'](args.frames)
+		frame_table = algorithms[k]['impl'](num_f)
+		frame_table.reset()
 		frame_table.simulate(trace)
 
 	print algorithms[k]['name']
@@ -113,11 +122,12 @@ def SimulateMaster(num_frames, data_file):
 	# args = GetCommandLineArgs()
 
 	frame_table = Master(num_frames)
+	frame_table.reset()
 	c=0
 	with open(data_file) as f:
 		for line in f:
 			if line.strip():
-				if c>10:
+				if c>1000*600:
 					break
 				frame_table.access(int(line.strip()))
 				c+=1
@@ -126,5 +136,17 @@ def SimulateMaster(num_frames, data_file):
 	frame_table.print_faults()
 
 if __name__ == "__main__":
-	SimulateMaster(100, 'data/fin_small_trace')
-	# SimulateStandardAlgo()
+	# num_f = 500
+	# fil = 'data/increasing.txt'
+	# SimulateMaster(num_f, fil)
+	# SimulateStandardAlgo(int(sys.argv[1]), sys.argv[2], sys.argv[3])
+	SimulateMaster(int(sys.argv[1]), sys.argv[2])
+
+
+	# 		'0': {'name': 'RANDOM', 'impl': Randomly},
+	# 	'1': {'name': 'FIFO', 'impl': FIFO},
+	# 	'2': {'name': 'LRU', 'impl': LRU},
+	# 	'3': {'name': 'MRU', 'impl': MRU},
+	# 	'4': {'name': 'NFU', 'impl': NFU},
+	# 	'5': {'name': 'OPTIMAL', 'impl': Optimal},
+	# }

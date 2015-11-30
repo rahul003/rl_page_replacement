@@ -1,0 +1,1 @@
+python master.py 500 data/increasing.txt 

@@ -38,6 +38,8 @@ class TraceData:
 		g.close()
 
 
+
+
 if __name__ == "__main__":
 	d = TraceData('data/Financial1.spc')
 	d.load_trace()

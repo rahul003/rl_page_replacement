@@ -59,15 +59,16 @@ class GradientDescent(FunctionApproximator):
 	#
 	def __init__(self, num_features, alpha):
 		super(GradientDescent,self).__init__(num_features)
-		self.params = np.ones(num_features)
+		self.params = np.zeros(num_features)
 		self.alpha = alpha
 
 	def getY(self, X):
+		# print 'getY',X, self.params
 		return np.dot(self.basis_f(X),self.params)
 
-	def update(self, delta, eligibility):
-		self.params = self.params + self.alpha*delta*eligibility
-
+	def update(self, delta, elig):
+		self.params = self.params + self.alpha*delta*elig
+		# print self.params
 	def gradient(self, inpt):
 		#for linear function
 		return inpt
@@ -75,6 +76,25 @@ class GradientDescent(FunctionApproximator):
 	def basis_f(self, x):
 		return x
 
+class GradDescScikit(FunctionApproximator):
+	def __init__(self, num_features, alpha):
+		super(GradientDescent,self).__init__(num_features)
+		self.params = np.zeros(num_features)
+		self.alpha = alpha
+
+	def getY(self, X):
+		# print 'getY',X, self.params
+		return np.dot(self.basis_f(X),self.params)
+
+	def update(self, delta, elig):
+		self.params = self.params + self.alpha*delta*elig
+		# print self.params
+	def gradient(self, inpt):
+		#for linear function
+		return inpt
+
+	def basis_f(self, x):
+		return x
 
 if __name__=='__main__':
 	g = GradientDescent(300)

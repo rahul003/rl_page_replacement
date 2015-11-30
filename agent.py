@@ -8,7 +8,7 @@ import numpy as np
 from approximator import GradientDescent
 
 class SarsaApprox:
-	def __init__(self, state_dim, action_dim, e=0.3, alpha=0.75, gamma=0.9, lamda=0.4, trained='pickle_fst.pkl'):
+	def __init__(self, state_dim, action_dim, e=0.1, alpha=0.0001, gamma=0.99, lamda=0.9, trained='pickle_fst.pkl'):
 		self.actions = list(range(action_dim))
 		self.state_dim = state_dim
 
@@ -20,13 +20,14 @@ class SarsaApprox:
 
 		self.eligibility = np.zeros((self.num_feats))
 		self.trained = trained
+		self.approximator = GradientDescent(self.num_feats, self.alpha)
 
-		try:
-			self.approximator = cPickle.load(open(trained))
-		except IOError, e:
-			print 'trained file not found'
-			self.approximator = GradientDescent(self.num_feats, self.alpha)
-			# self.approximator = NNet(self.num_feats, 100)
+		# try:
+		# 	# pass
+		# 	self.approximator = cPickle.load(open(trained))
+		# except IOError, e:
+		# 	print 'trained file not found'
+		# 	# self.approximator = NNet(self.num_feats, 100)
 
 	def e_greedy(self, state):
 		"""
@@ -36,12 +37,15 @@ class SarsaApprox:
 		if random.random() < self.e:
 			action = random.randint(0, len(self.actions)-1)
 			explore = True
+			# print 'random action',action
 		# Exploit
 		else:
 			explore = False
 			values = []
+			# print 'values',
 			for index in range(len(self.actions)):
 				cur_value = self.qvalue(state, index)
+				# print cur_value, 
 				if cur_value not in values:
 					values.append(cur_value)
 				# print cur_value,
@@ -49,7 +53,7 @@ class SarsaApprox:
 					max_value = cur_value
 					max_action = 0
 					
-				elif cur_value>=max_value:
+				elif cur_value>max_value:
 					max_value = cur_value
 					max_action = index
 			action = max_action
@@ -62,15 +66,13 @@ class SarsaApprox:
 		"""
 		action is int
 		"""
-		actions_vec = np.zeros(len(self.actions), dtype=np.int)
+		actions_vec = np.zeros(len(self.actions))
 		actions_vec[action] = 1
 		
 		#s,a pair
-		net_input = np.concatenate([state.get_vec(), actions_vec])
-
-		if not state.get_vec().max(axis=0).all():
-			print state.s
-		return net_input
+		return np.concatenate([state.get_vec(), actions_vec])
+		# if not state.get_vec().max(axis=0).all():
+		# 	print 'all empty'
 
 	def qvalue(self, state, action):
 		#q value for s,a
@@ -90,13 +92,15 @@ class SarsaApprox:
 		q_old = self.qvalue(state, action)
 		q_new = self.qvalue(new_state, new_action)
 		delta = reward + (self.gamma*q_new)-q_old
-
+		# print q_old, q_new, reward, 0.9*q_new, 0.9*q_new-q_old, delta
 		self.eligibility = self.gamma * self.lamda* self.eligibility + self.approximator.gradient(self.sa_to_input(state, action))
-		# print target
+		
+		
 		self.approximator.update(delta, self.eligibility)
 
 
 	def save_model(self):
-		fp = open(self.trained, "w")
-		cPickle.dump(self.approximator, fp)
-		fp.close()
+		pass
+		# fp = open(self.trained, "w")
+		# cPickle.dump(self.approximator, fp)
+		# fp.close()

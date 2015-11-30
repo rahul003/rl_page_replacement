@@ -7,6 +7,7 @@ from utils import file_len
 from abc import ABCMeta, abstractmethod
 from state import State
 
+
 class FrameTable(object):
 	__metaclass__ = ABCMeta
 
@@ -18,9 +19,15 @@ class FrameTable(object):
 	def __init__(self, size):
 		FrameTable.frames = numpy.zeros(size, dtype=numpy.int)
 		FrameTable.current_state = State(size, 3)
-		
+		self.size = size
 	def print_faults(self):
 		print FrameTable.faults
+
+	def reset(self):
+		FrameTable.frames = numpy.zeros(self.size, dtype=numpy.int)
+		FrameTable.faults = 0
+		FrameTable.time = 0
+		FrameTable.current_state = State(self.size, 3)
 
 	@abstractmethod
 	def insert_data(self, frame):
@@ -76,7 +83,8 @@ class Randomly(FrameTable):
 		FrameTable.current_state.access(frame, FrameTable.time)
 
 	def eject(self):
-		return random.randint(0, FrameTable.frames.shape[0] - 1)
+		return 0
+		# return random.randint(0, FrameTable.frames.shape[0] - 1)
 
 class FIFO(FrameTable):
 	"""ejects pages according to the order in which they were inserted."""
@@ -113,6 +121,26 @@ class LRU(FrameTable):
 	def eject(self):
 		ejected_page = numpy.argmin(self.access_times)
 		self.access_times[ejected_page] = numpy.iinfo(numpy.int).max
+		return ejected_page
+
+class MRU(FrameTable):
+	"""ejects pages which have been the most recently used."""
+
+	def __init__(self, size):
+		FrameTable.__init__(self,size)
+		#for LRU #init value doesnt matter as init value will nto be queired
+		self.access_times = numpy.zeros(size, dtype=numpy.int)
+	
+	def insert_data(self, frame):
+		self.access_times[frame] = FrameTable.time
+
+	def hit(self, frame):
+		self.access_times[frame] = FrameTable.time 
+		FrameTable.current_state.access(frame, FrameTable.time)
+
+	def eject(self):
+		ejected_page = numpy.argmax(self.access_times)
+		self.access_times[ejected_page] = numpy.iinfo(numpy.int).min
 		return ejected_page
 
 class NFU(FrameTable):
