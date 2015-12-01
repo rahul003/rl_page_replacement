@@ -68,6 +68,7 @@ class GradientDescent(FunctionApproximator):
 
 	def update(self, delta, elig):
 		self.params = self.params + self.alpha*delta*elig
+		self.alpha = self.alpha * 0.99
 		# print self.params
 	def gradient(self, inpt):
 		#for linear function
