@@ -20,11 +20,21 @@ class Master(FrameTable):
 		self.agent = SarsaApprox(size, len(self.algorithms))
 		#train to make all inputs go to 10/100 (?)
 		self.reward_style = reward_style
+		if not reward_style == 'simple':
+			self.framefault = {}
+		
 		self.miss_reward_step = -1
 		self.hit_reward_step = 1
 
-		self.framefault = {}
-		self.actions_history = {0:0,1:0,2:0,3:0}
+		# if not actions_history == 'detailed':
+			# self.actions_history = {0:0,1:0,2:0,3:0}
+		self.ah_files = []
+		self.ah_counts = [0,0,0,0]
+		self.ah_files.append(open('actions_history_0','w'))
+		self.ah_files.append(open('actions_history_1','w'))
+		self.ah_files.append(open('actions_history_2','w'))
+		self.ah_files.append(open('actions_history_3','w'))
+		
 
 	def get_miss_reward(self):
 		if self.reward_style == 'simple':
@@ -41,8 +51,10 @@ class Master(FrameTable):
 		state = FrameTable.current_state
 		# print 'getting action for current state'
 		action = self.agent.act(state)
-		self.actions_history[action]+=1
-		
+		self.ah_counts[action]+=1
+		for a in range(0,len(self.algorithms)):
+			self.ah_files[a].write(str(self.ah_counts[a])+'\n')
+
 		if not action == self.curalgo:
 			self.curalgo = action
 
@@ -65,7 +77,6 @@ class Master(FrameTable):
 			self.agent.save_model()
 
 	def hit(self, p):
-
 		for algo in self.algorithms:
 			# print 'master algo hit'
 			algo.hit(p)
@@ -77,15 +88,18 @@ class Master(FrameTable):
 
 	def eject(self):
 		fid = self.algorithms[self.curalgo].eject()
-		if fid in self.framefault:
-			self.framefault[fid]+=1
-		else:
-			self.framefault[fid]=1
+		# if not self.reward_style == 'simple':
+		# 	if fid in self.framefault:
+		# 		self.framefault[fid]+=1
+		# 	else:
+		# 		self.framefault[fid]=1
 		return fid
 
 	def print_faults(self):
 		FrameTable.print_faults(self)
-		print self.actions_history
+		print self.ah_counts
+		for i in range(0,len(self.algorithms)):
+			self.ah_files[i].close()
 
 def GetCommandLineArgs():
 	parser = argparse.ArgumentParser(description='simulates page replacement algorithms')
@@ -146,7 +160,7 @@ def SimulateStandardAlgo(num_f, filename, k):
 	print algorithms[k]['name']
 	frame_table.print_faults()
 
-def SimulateMaster(num_frames, data_file, reward_style):
+def SimulateMaster(num_frames, data_file, reward_style='simple'):
 	random.seed()
 	# args = GetCommandLineArgs()
 
@@ -171,7 +185,7 @@ if __name__ == "__main__":
 	if(len(sys.argv)==4):
 		SimulateStandardAlgo(int(sys.argv[1]), sys.argv[2], sys.argv[3])
 	else:
-		SimulateMaster(int(sys.argv[1]), sys.argv[2], 'num_unique_frames')
+		SimulateMaster(int(sys.argv[1]), sys.argv[2])
 
 	# 		'0': {'name': 'RANDOM', 'impl': Randomly},
 	# 	'1': {'name': 'FIFO', 'impl': FIFO},
