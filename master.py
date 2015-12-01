@@ -5,22 +5,35 @@ import sys
 import numpy
 from utils import file_len
 class Master(FrameTable):
-	def __init__(self, size):
+	def __init__(self, size, reward_style='simple'):
 		FrameTable.__init__(self, size)
 		
 		self.algorithms = []
-		self.algorithms.append(Randomly(size))
+
+		# self.algorithms.append(Randomly(size))
 		self.algorithms.append(LRU(size))
 		self.algorithms.append(FIFO(size))
 		self.algorithms.append(NFU(size))
+		self.algorithms.append(MRU(size))
 		self.curalgo = 0
 
 		self.agent = SarsaApprox(size, len(self.algorithms))
 		#train to make all inputs go to 10/100 (?)
-		self.miss_reward = -1
-		self.hit_reward = 1
+		self.reward_style = reward_style
+		self.miss_reward_step = -1
+		self.hit_reward_step = 1
 
+		self.framefault = {}
 		self.actions_history = {0:0,1:0,2:0,3:0}
+
+	def get_miss_reward(self):
+		if self.reward_style == 'simple':
+			return self.miss_reward_step
+		elif self.reward_style == 'num_unique_frames':
+			return -1*len(self.framefault)
+
+	def get_hit_reward(self):
+		return self.hit_reward_step
 
 	def access(self, page):
 		#Attempt to access a given page
@@ -35,10 +48,10 @@ class Master(FrameTable):
 
 		if not FrameTable.access(self, page):
 			#page fault
-			reward = self.miss_reward
+			reward = self.get_miss_reward()
 		else:
 			#hit
-			reward = self.hit_reward
+			reward = self.get_hit_reward()
 		
 		new_state = FrameTable.current_state
 
@@ -63,7 +76,12 @@ class Master(FrameTable):
 			algo.insert_data(frame)	
 
 	def eject(self):
-		return self.algorithms[self.curalgo].eject()
+		fid = self.algorithms[self.curalgo].eject()
+		if fid in self.framefault:
+			self.framefault[fid]+=1
+		else:
+			self.framefault[fid]=1
+		return fid
 
 	def print_faults(self):
 		FrameTable.print_faults(self)
@@ -96,6 +114,7 @@ def SimulateStandardAlgo(num_f, filename, k):
 	if k=='5':
 		trace = numpy.zeros(file_len(filename), dtype=numpy.int)
 		count = 0
+		occurences = {}
 	else:
 		frame_table = algorithms[k]['impl'](num_f)
 		frame_table.reset()
@@ -103,34 +122,44 @@ def SimulateStandardAlgo(num_f, filename, k):
 	with open(filename) as f:
 		for line in f:
 			if line.strip():
+				# if c>(1000*600):
+				# 	break
 				if k!='5':            
 					frame_table.access(int(line.strip()))
 				else:
-					trace[count] = int(line.strip())
+					key = int(line.strip())
+					trace[count] = key
+					if key in occurences:
+						occurences[key].append(count)
+					else:
+						occurences[key] = []
+						occurences[key].append(count)
 					count+=1
+
+				# c+=1
+
 
 	if k=='5':
 		frame_table = algorithms[k]['impl'](num_f)
 		frame_table.reset()
-		frame_table.simulate(trace)
-
+		frame_table.simulate(trace, occurences)
 	print algorithms[k]['name']
 	frame_table.print_faults()
 
-def SimulateMaster(num_frames, data_file):
+def SimulateMaster(num_frames, data_file, reward_style):
 	random.seed()
 	# args = GetCommandLineArgs()
 
-	frame_table = Master(num_frames)
+	frame_table = Master(num_frames, reward_style)
 	frame_table.reset()
-	c=0
+	# c=0
 	with open(data_file) as f:
 		for line in f:
 			if line.strip():
-				if c>1000*600:
-					break
+				# if c>(1000*600):
+					# break
 				frame_table.access(int(line.strip()))
-				c+=1
+				# c+=1
 				
 	print 'Master performance: '
 	frame_table.print_faults()
@@ -139,9 +168,10 @@ if __name__ == "__main__":
 	# num_f = 500
 	# fil = 'data/increasing.txt'
 	# SimulateMaster(num_f, fil)
-	# SimulateStandardAlgo(int(sys.argv[1]), sys.argv[2], sys.argv[3])
-	SimulateMaster(int(sys.argv[1]), sys.argv[2])
-
+	if(len(sys.argv)==4):
+		SimulateStandardAlgo(int(sys.argv[1]), sys.argv[2], sys.argv[3])
+	else:
+		SimulateMaster(int(sys.argv[1]), sys.argv[2], 'num_unique_frames')
 
 	# 		'0': {'name': 'RANDOM', 'impl': Randomly},
 	# 	'1': {'name': 'FIFO', 'impl': FIFO},

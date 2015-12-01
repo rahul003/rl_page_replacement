@@ -1,1 +1,1 @@
-python master.py 500 data/increasing.txt 
+time python master.py 500 data/changingpatterns_withincreasing.txt 4 & time python master.py 500 data/changingpatterns_withincreasing.txt 3 & time python master.py 500 data/changingpatterns_withincreasing.txt 2 & time python master.py 500 data/changingpatterns_withincreasing.txt 1 & time python master.py 500 data/changingpatterns_withincreasing.txt 5 &

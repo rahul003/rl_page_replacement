@@ -4,6 +4,7 @@ import random
 import numpy
 from numpy import where
 from utils import file_len
+from bisect import bisect
 from abc import ABCMeta, abstractmethod
 from state import State
 
@@ -164,34 +165,67 @@ class NFU(FrameTable):
 			print 'Error'
 		return ejected_page
 
+class ARC(FrameTable):
+	
+	def __init__(self, size):
+		FrameTable.__init__(self,size)
+		self.t1 = {}
+		self.t2 = {}
+		
+
+	def insert_data(self, frame):
+		self.access_counts[frame] = 1
+
+	def hit(self, frame):
+		self.access_counts[frame] +=1
+		FrameTable.current_state.access(frame, FrameTable.time)
+
+	def eject(self):
+		ejected_page = numpy.argmin(self.access_counts)
+		if(self.access_counts[ejected_page]==0):
+			print 'Error'
+		return ejected_page
+
+
+
+
 class Optimal(FrameTable):
 	"""looks into the future in order to implement the optimal page replacement algorithm."""
 
 	def eject(self):
 		max_index = 0
 		max_frame = FrameTable.frames[0] #this will be used only in case of last trace page. doesnt mattter
-
-		for frame in FrameTable.frames:
-			next_occurences = where(self.trace[self.k+1:] == frame)[0]
-			if next_occurences.size:
-				index = self.k+1+next_occurences[0]
-				if index>max_index:
-					max_index = index
+		max_i = 0
+		for i,frame in enumerate(FrameTable.frames):
+			index = bisect(self.occ[frame],self.k)
+			
+			if index >= len(self.occ[frame]):
+				# no next occurence
+				# print index, len(self.occ[frame])
+				return i
+			try:
+				next_occ = self.occ[frame][index]
+				if next_occ>max_index:
+					max_index = next_occ
 					max_frame = frame
-			else:
-				max_frame = frame
-				break
-		ind = where(FrameTable.frames == max_frame)[0][0]
-		return ind
+					max_i = i
+			except:
+				# print self.occ[frame]
+				# print self.k, i, frame, index, len(self.occ[frame])
+				assert False
+		return max_i
 	
 	def hit(self, frame):
 		pass
 	def insert_data(self, frame):
 		pass
 	
-	def simulate(self, trace):
+	def simulate(self, trace, occ):
 		self.trace = trace
-		for k in range(0, trace.shape[0]):            
+		self.occ = occ
+		for k in range(0, trace.shape[0]):  
+			# if not k%1000:
+				# print k          
 			self.k = k
 			self.access(trace[k])
 
