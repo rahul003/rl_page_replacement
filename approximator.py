@@ -56,8 +56,6 @@ class NNet(FunctionApproximator):
 		trainer.train()
 
 class GradientDescent(FunctionApproximator):
-	#this is linear function: http://www.cc.gatech.edu/~mnelson/darcs/rl/_darcs/current/src/LinearStateActionValueFunc.java
-	#
 	def __init__(self, num_features, alpha):
 		super(GradientDescent,self).__init__(num_features)
 		self.params = np.zeros(num_features)
@@ -70,7 +68,7 @@ class GradientDescent(FunctionApproximator):
 	def update(self, delta, elig):
 		self.params = self.params + self.alpha*delta*elig
 		self.alpha = self.alpha * 0.99
-		# print self.params
+
 	def gradient(self, inpt):
 		#for linear function
 		return inpt
