@@ -1,10 +1,7 @@
 import cPickle
 import math
 import random
-import sys
-
 import numpy as np
-
 from approximator import GradientDescent
 
 class SarsaApprox:
@@ -37,18 +34,14 @@ class SarsaApprox:
 		if random.random() < self.e:
 			action = random.randint(0, len(self.actions)-1)
 			explore = True
-			# print 'random action',action
 		# Exploit
 		else:
 			explore = False
 			values = []
-			# print 'values',
 			for index in range(len(self.actions)):
 				cur_value = self.qvalue(state, index)
-				# print cur_value, 
 				if cur_value not in values:
 					values.append(cur_value)
-				# print cur_value,
 				if index==0:
 					max_value = cur_value
 					max_action = 0
@@ -57,22 +50,14 @@ class SarsaApprox:
 					max_value = cur_value
 					max_action = index
 			action = max_action
-			# if len(values)>1:
-				# print values
-			# print 'Max: ',max_action, max_value
 		return action
 
 	def sa_to_input(self, state, action):
-		"""
-		action is int
-		"""
+		#action is int
 		actions_vec = np.zeros(len(self.actions))
-		actions_vec[action] = 1
-		
+		actions_vec[action] = 1		
 		#s,a pair
 		return np.concatenate([state.get_vec(), actions_vec])
-		# if not state.get_vec().max(axis=0).all():
-		# 	print 'all empty'
 
 	def qvalue(self, state, action):
 		#q value for s,a
@@ -81,7 +66,6 @@ class SarsaApprox:
 
 	def act(self, state):
 		"""
-		have to change initial value ?
 		or use boltzmann exploration: refer solar boat thesis paper
 		"""
 		action = self.e_greedy(state)
@@ -94,13 +78,10 @@ class SarsaApprox:
 		delta = reward + (self.gamma*q_new)-q_old
 		# print q_old, q_new, reward, 0.9*q_new, 0.9*q_new-q_old, delta
 		self.eligibility = self.gamma * self.lamda* self.eligibility + self.approximator.gradient(self.sa_to_input(state, action))
-		
-		
 		self.approximator.update(delta, self.eligibility)
 
 
 	def save_model(self):
-		pass
-		# fp = open(self.trained, "w")
-		# cPickle.dump(self.approximator, fp)
-		# fp.close()
+		fp = open(self.trained, "w")
+		cPickle.dump(self.approximator, fp)
+		fp.close()

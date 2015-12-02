@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import numpy as np
+
 import pybrain
 from pybrain.tools.shortcuts import buildNetwork
 from pybrain.datasets import SupervisedDataSet
@@ -77,25 +78,6 @@ class GradientDescent(FunctionApproximator):
 	def basis_f(self, x):
 		return x
 
-class GradDescScikit(FunctionApproximator):
-	def __init__(self, num_features, alpha):
-		super(GradientDescent,self).__init__(num_features)
-		self.params = np.zeros(num_features)
-		self.alpha = alpha
-
-	def getY(self, X):
-		# print 'getY',X, self.params
-		return np.dot(self.basis_f(X),self.params)
-
-	def update(self, delta, elig):
-		self.params = self.params + self.alpha*delta*elig
-		# print self.params
-	def gradient(self, inpt):
-		#for linear function
-		return inpt
-
-	def basis_f(self, x):
-		return x
 
 if __name__=='__main__':
 	g = GradientDescent(300)

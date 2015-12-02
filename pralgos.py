@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-import argparse
 import random
 import numpy
 from numpy import where
@@ -7,7 +5,6 @@ from utils import file_len
 from bisect import bisect
 from abc import ABCMeta, abstractmethod
 from state import State
-
 
 class FrameTable(object):
 	__metaclass__ = ABCMeta
@@ -21,6 +18,7 @@ class FrameTable(object):
 		FrameTable.frames = numpy.zeros(size, dtype=numpy.int)
 		FrameTable.current_state = State(size, 3)
 		self.size = size
+
 	def print_faults(self):
 		print FrameTable.faults
 
@@ -75,8 +73,6 @@ class FrameTable(object):
 			self.insert_data(frame)
 			
 class Randomly(FrameTable):
-	"""randomly ejects pages when there is a page fault."""
-
 	def insert_data(self, frame):
 		pass
 
@@ -84,15 +80,11 @@ class Randomly(FrameTable):
 		FrameTable.current_state.access(frame, FrameTable.time)
 
 	def eject(self):
-		return 0
-		# return random.randint(0, FrameTable.frames.shape[0] - 1)
+		return random.randint(0, FrameTable.frames.shape[0] - 1)
 
 class FIFO(FrameTable):
-	"""ejects pages according to the order in which they were inserted."""
-
 	def __init__(self, size):
 		FrameTable.__init__(self,size)
-		#for fifo
 		self.insert_times = numpy.zeros(size, dtype=numpy.int)
 
 	def hit(self, frame):
@@ -105,8 +97,6 @@ class FIFO(FrameTable):
 		return numpy.argmin(self.insert_times)
 
 class LRU(FrameTable):
-	"""ejects pages which have been the least recently used."""
-
 	def __init__(self, size):
 		FrameTable.__init__(self,size)
 		#for LRU #init value doesnt matter as init value will nto be queired
@@ -125,11 +115,8 @@ class LRU(FrameTable):
 		return ejected_page
 
 class MRU(FrameTable):
-	"""ejects pages which have been the most recently used."""
-
 	def __init__(self, size):
 		FrameTable.__init__(self,size)
-		#for LRU #init value doesnt matter as init value will nto be queired
 		self.access_times = numpy.zeros(size, dtype=numpy.int)
 	
 	def insert_data(self, frame):
@@ -145,11 +132,8 @@ class MRU(FrameTable):
 		return ejected_page
 
 class NFU(FrameTable):
-	"""ejects pages according to the not frequently used algorithm."""
-
 	def __init__(self, size):
 		FrameTable.__init__(self,size)
-		#forNFU
 		self.access_counts = numpy.zeros(size, dtype=numpy.int)
 	
 	def insert_data(self, frame):
@@ -165,33 +149,8 @@ class NFU(FrameTable):
 			print 'Error'
 		return ejected_page
 
-class ARC(FrameTable):
-	
-	def __init__(self, size):
-		FrameTable.__init__(self,size)
-		self.t1 = {}
-		self.t2 = {}
-		
-
-	def insert_data(self, frame):
-		self.access_counts[frame] = 1
-
-	def hit(self, frame):
-		self.access_counts[frame] +=1
-		FrameTable.current_state.access(frame, FrameTable.time)
-
-	def eject(self):
-		ejected_page = numpy.argmin(self.access_counts)
-		if(self.access_counts[ejected_page]==0):
-			print 'Error'
-		return ejected_page
-
-
-
 
 class Optimal(FrameTable):
-	"""looks into the future in order to implement the optimal page replacement algorithm."""
-
 	def eject(self):
 		max_index = 0
 		max_frame = FrameTable.frames[0] #this will be used only in case of last trace page. doesnt mattter
@@ -210,6 +169,7 @@ class Optimal(FrameTable):
 					max_frame = frame
 					max_i = i
 			except:
+				# shouldn't happen
 				# print self.occ[frame]
 				# print self.k, i, frame, index, len(self.occ[frame])
 				assert False
@@ -224,8 +184,6 @@ class Optimal(FrameTable):
 		self.trace = trace
 		self.occ = occ
 		for k in range(0, trace.shape[0]):  
-			# if not k%1000:
-				# print k          
 			self.k = k
 			self.access(trace[k])
 

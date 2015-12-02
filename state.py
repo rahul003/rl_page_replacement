@@ -2,9 +2,9 @@ import numpy as np
 
 class State:
 	"""
-	for each slot in frame, store its pagenumber, inserted time, freq of access, last access time
+	for each slot in frame, store its inserted time, freq of access, last access time
 	functions:
-	change to new state, which means may involve just changing any of 4 values for a frame
+	change to new state, which means may involve just changing any of 3 values for a frame
 	"""
 	def __init__(self, size, param):
 		self.s = np.zeros((size, param))
