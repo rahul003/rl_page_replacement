@@ -3,3 +3,5 @@ But it has since been modified quite a lot. Optimal policy rewritten, Master imp
 
 SARSA and SGD have been implemented by me following Sutton and Barto's book.
 Default parameter values have been taken from implementations of different RL algos and library codes available online.
+
+Report: https://www.dropbox.com/s/ptpfnlpkmpk2g0x/Report.pdf?dl=0
